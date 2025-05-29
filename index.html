@@ -329,7 +329,7 @@
       "pikon0533@gmail.com": "Pikon"
     };
   
-    auth.onAuthStateChanged(user => {
+    auth.onAuthStateChanged(async user => {
       const container = document.querySelector('.container');
   
       if (user && Object.keys(nomesUsuarios).includes(user.email)) {
@@ -338,7 +338,8 @@
         document.getElementById('dashboard').style.display = 'block';
         document.getElementById('leaderboard').style.display = 'block';
         document.getElementById('user-email').innerText = nomesUsuarios[user.email] || user.email;
-        carregarDados(user);
+        await carregarContador(user);
+        await carregarHistorico();
       } else {
         document.getElementById('login-section').style.display = 'block';
         document.getElementById('dashboard').style.display = 'none';
@@ -392,46 +393,45 @@
         document.getElementById('days-count').innerText = texto;
       }
   
-      atualizar(); // Atualiza agora
-      setInterval(atualizar, 1000); // Atualiza a cada segundo
+      atualizar();
+      setInterval(atualizar, 1000);
     }
   
-    async function carregarDados(user) {
-      const doc = await db.collection('estado').doc('contador').get();
-      const data = doc.exists ? doc.data() : null;
+    async function carregarContador(user) {
+      const docRef = db.collection('estado').doc(`usuarios_${user.email}`);
+      const doc = await docRef.get();
+      let data;
   
-      if (data && data.ultimoReset) {
-        atualizarContador(data.ultimoReset);
+      if (doc.exists) {
+        data = doc.data();
       } else {
-        const hoje = new Date().toISOString();
-        await db.collection('estado').doc('contador').set({ ultimoReset: hoje, historico: [] });
-        atualizarContador(hoje);
+        data = { ultimoReset: new Date().toISOString() };
+        await docRef.set(data);
       }
   
-      if (data && data.historico) {
-        data.historico = data.historico.map(item => {
-          if (nomesUsuarios[item.utilizador]) {
-            item.utilizador = nomesUsuarios[item.utilizador];
-          }
-          return item;
-        });
+      atualizarContador(data.ultimoReset);
+    }
   
-        const lista = document.getElementById('scoreboard');
-        lista.innerHTML = '';
-        data.historico.slice().reverse().forEach(item => {
-          const li = document.createElement('li');
-          const motivoId = `motivo-${item.id}`;
-          li.innerHTML = `
-            <strong>${item.data}</strong> - <em>${item.utilizador}</em> discutiu após <strong>${item.dias}</strong> dias:<br>
-            <div id="${motivoId}" class="motivo-container">${item.motivo}</div>
-            <div style="margin-top: 0.3rem;">
-              <button class="small" onclick="toggleTexto('${motivoId}', this)">Ver mais</button>
-              <button class="btn-excluir" onclick="removerDiscussao('${item.id}')">×</button>
-            </div>
-          `;
-          lista.appendChild(li);
-        });
-      }
+    async function carregarHistorico() {
+      const doc = await db.collection('estado').doc('historico').get();
+      const data = doc.exists ? doc.data() : { historico: [] };
+  
+      const lista = document.getElementById('scoreboard');
+      lista.innerHTML = '';
+  
+      data.historico.slice().reverse().forEach(item => {
+        const li = document.createElement('li');
+        const motivoId = `motivo-${item.id}`;
+        li.innerHTML = `
+          <strong>${item.data}</strong> - <em>${item.utilizador}</em> discutiu após <strong>${item.dias}</strong> dias:<br>
+          <div id="${motivoId}" class="motivo-container">${item.motivo}</div>
+          <div style="margin-top: 0.3rem;">
+            <button class="small" onclick="toggleTexto('${motivoId}', this)">Ver mais</button>
+            <button class="btn-excluir" onclick="removerDiscussao('${item.id}')">×</button>
+          </div>
+        `;
+        lista.appendChild(li);
+      });
     }
   
     async function registarDiscussao() {
@@ -444,13 +444,15 @@
       const user = auth.currentUser;
       if (!user) return;
   
-      const docRef = db.collection('estado').doc('contador');
-      const doc = await docRef.get();
-      const data = doc.exists ? doc.data() : { ultimoReset: new Date().toISOString(), historico: [] };
+      const userDocRef = db.collection('estado').doc(`usuarios_${user.email}`);
+      const historicoRef = db.collection('estado').doc('historico');
+  
+      const userDoc = await userDocRef.get();
+      const historicoDoc = await historicoRef.get();
+  
       const hoje = new Date();
-      const ultimoReset = new Date(data.ultimoReset);
-      const diff = hoje - ultimoReset;
-      const dias = Math.floor(diff / (1000 * 60 * 60 * 24));
+      const ultimoReset = userDoc.exists ? new Date(userDoc.data().ultimoReset) : hoje;
+      const dias = Math.floor((hoje - ultimoReset) / (1000 * 60 * 60 * 24));
   
       const novaDiscussao = {
         id: gerarId(),
@@ -460,15 +462,16 @@
         utilizador: nomesUsuarios[user.email] || user.email
       };
   
-      data.historico = data.historico || [];
-      data.historico.push(novaDiscussao);
-      data.ultimoReset = hoje.toISOString();
+      const historicoData = historicoDoc.exists ? historicoDoc.data() : { historico: [] };
+      historicoData.historico.push(novaDiscussao);
   
-      await docRef.set(data);
+      await userDocRef.set({ ultimoReset: hoje.toISOString() });
+      await historicoRef.set(historicoData);
   
       document.getElementById('motivo').value = '';
       document.getElementById('form-discussao').style.display = 'none';
-      carregarDados(user);
+      await carregarContador(user);
+      await carregarHistorico();
     }
   
     function cancelarDiscussao() {
@@ -479,15 +482,15 @@
     async function removerDiscussao(id) {
       if (!confirm('Tem certeza que quer excluir esta discussão?')) return;
   
-      const docRef = db.collection('estado').doc('contador');
-      const doc = await docRef.get();
+      const historicoRef = db.collection('estado').doc('historico');
+      const doc = await historicoRef.get();
       if (!doc.exists) return;
   
       const data = doc.data();
       data.historico = data.historico.filter(item => item.id !== id);
   
-      await docRef.set(data);
-      carregarDados(auth.currentUser);
+      await historicoRef.set(data);
+      await carregarHistorico();
     }
   
     function toggleTexto(id, botao) {
@@ -498,18 +501,12 @@
   
     async function resetarDiscussoes() {
       if (!confirm('Tem certeza que quer resetar todo o histórico de discussões?')) return;
-  
-      const docRef = db.collection('estado').doc('contador');
-      const hoje = new Date();
-  
-      await docRef.set({
-        ultimoReset: hoje.toISOString(),
-        historico: []
-      });
-  
-      carregarDados(auth.currentUser);
+      const historicoRef = db.collection('estado').doc('historico');
+      await historicoRef.set({ historico: [] });
+      await carregarHistorico();
     }
   </script>
+  
   
 </body>
 </html>
