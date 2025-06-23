@@ -1,0 +1,203 @@
+<!DOCTYPE html>
+<html lang="pt">
+<head>
+    <script>
+        window.location.href = "froleta.html";
+      </script>    
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Roleta Secreta</title>
+<style>
+  body {
+    font-family: Arial, sans-serif;
+    background: #f0e6f6;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    height: 100vh;
+    margin: 0;
+  }
+  h1 {
+    margin-bottom: 1rem;
+    color: #5a3e8a;
+  }
+  #roleta {
+    width: 300px;
+    height: 300px;
+    border-radius: 50%;
+    border: 8px solid #5a3e8a;
+    position: relative;
+    overflow: hidden;
+  }
+  #seta {
+    position: absolute;
+    top: -20px;
+    left: 50%;
+    transform: translateX(-50%);
+    font-size: 2.5rem;
+    color: #5a3e8a;
+  }
+  #resultado {
+    margin-top: 1.5rem;
+    font-size: 1.2rem;
+    font-weight: bold;
+    color: #5a3e8a;
+    min-height: 2em;
+  }
+  #botaoGirar {
+    margin-top: 1rem;
+    padding: 0.8rem 1.5rem;
+    font-size: 1.1rem;
+    background-color: #5a3e8a;
+    border: none;
+    color: white;
+    border-radius: 8px;
+    cursor: pointer;
+    transition: background-color 0.3s ease;
+  }
+  #botaoGirar:hover {
+    background-color: #44316e;
+  }
+  #listaItens {
+    margin-top: 2rem;
+    width: 300px;
+    max-height: 150px;
+    overflow-y: auto;
+    background: white;
+    border-radius: 8px;
+    padding: 1rem;
+    box-shadow: 0 0 10px rgba(90,62,138,0.2);
+  }
+  #listaItens input {
+    width: 80%;
+    padding: 0.5rem;
+    margin-right: 0.5rem;
+    border-radius: 4px;
+    border: 1px solid #aaa;
+  }
+  #listaItens button {
+    padding: 0.5rem 1rem;
+    background-color: #5a3e8a;
+    color: white;
+    border: none;
+    border-radius: 4px;
+    cursor: pointer;
+  }
+  #listaItens button:hover {
+    background-color: #44316e;
+  }
+  ul {
+    list-style: none;
+    padding: 0;
+    margin-top: 1rem;
+  }
+  ul li {
+    padding: 0.3rem 0;
+    border-bottom: 1px solid #ddd;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+  }
+  ul li button {
+    background: transparent;
+    border: none;
+    color: #a00;
+    font-weight: bold;
+    cursor: pointer;
+  }
+</style>
+</head>
+<body>
+
+<h1>Roleta Secreta</h1>
+
+<div id="roleta">
+  <div id="seta">▼</div>
+</div>
+
+<div id="resultado"></div>
+<button id="botaoGirar">Girar Roleta</button>
+
+<div id="listaItens">
+  <input type="text" id="novoItem" placeholder="Adicionar item..." />
+  <button id="adicionarItem">Adicionar</button>
+
+  <ul id="itensList"></ul>
+</div>
+
+<script>
+  // Itens iniciais da roleta
+  let itens = ["Escolha A", "Escolha B", "Escolha C"];
+  
+  // Palavra secreta que provoca redirecionamento
+  const palavraSecreta = "codigo secreto";
+  
+  // URL do website principal (onde redireciona)
+  const urlSitePrincipal = "index.html";
+  
+  const itensList = document.getElementById("itensList");
+  const resultado = document.getElementById("resultado");
+  const botaoGirar = document.getElementById("botaoGirar");
+  const inputNovoItem = document.getElementById("novoItem");
+  const botaoAdicionar = document.getElementById("adicionarItem");
+  
+  // Renderiza lista de itens na interface
+  function renderizarItens() {
+    itensList.innerHTML = "";
+    itens.forEach((item, i) => {
+      const li = document.createElement("li");
+      li.textContent = item;
+      const btnExcluir = document.createElement("button");
+      btnExcluir.textContent = "x";
+      btnExcluir.title = "Remover item";
+      btnExcluir.onclick = () => {
+        itens.splice(i, 1);
+        renderizarItens();
+      };
+      li.appendChild(btnExcluir);
+      itensList.appendChild(li);
+    });
+  }
+  
+  // Função para girar roleta (simples sorteio aleatório)
+  function girarRoleta() {
+    if (itens.length === 0) {
+      resultado.textContent = "Adicione itens para girar a roleta.";
+      return;
+    }
+    botaoGirar.disabled = true;
+    resultado.textContent = "Girando...";
+    // Simula "giro" visual (3 segundos)
+    setTimeout(() => {
+      const indexEscolhido = Math.floor(Math.random() * itens.length);
+      const escolhido = itens[indexEscolhido];
+      resultado.textContent = `Resultado: ${escolhido}`;
+      botaoGirar.disabled = false;
+    }, 3000);
+  }
+  
+  // Evento de clique no botão girar
+  botaoGirar.addEventListener("click", girarRoleta);
+  
+  // Evento de clique no botão adicionar
+  botaoAdicionar.addEventListener("click", () => {
+    const valor = inputNovoItem.value.trim();
+    if (valor && !itens.includes(valor)) {
+      itens.push(valor);
+      inputNovoItem.value = "";
+      renderizarItens();
+      
+      // Se for a palavra secreta, redireciona
+      if (valor.toLowerCase() === palavraSecreta) {
+        window.location.href = urlSitePrincipal;
+      }
+    }
+  });
+  
+  // Renderiza na inicialização
+  renderizarItens();
+</script>
+
+</body>
+</html>
