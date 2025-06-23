@@ -1,1 +1,513 @@
 
+<!DOCTYPE html>
+<html lang="pt">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Contador de Dias Sem Discutir</title>
+  
+  <link href="https://fonts.googleapis.com/css2?family=Dancing+Script&display=swap" rel="stylesheet">
+
+  <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-auth-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-firestore-compat.js"></script>
+
+  <style>
+    /* Seu CSS aqui (mantive o seu original, pode substituir) */
+    * {
+      box-sizing: border-box;
+    }
+
+    body {
+      margin: 0;
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+      background: linear-gradient(135deg, #f9e7e7 0%, #ffd7d7 100%);
+      color: #5a3e36;
+      display: flex;
+      flex-direction: column;
+      min-height: 100vh;
+      padding: 1rem;
+    }
+    
+    h1 {
+      text-align: center;
+      font-weight: 700;
+      color: #a34f4f;
+      margin-bottom: 2rem;
+      letter-spacing: 1.2px;
+      font-family: 'Dancing Script', cursive;
+      font-size: 3.5rem;
+      text-shadow: 1px 1px 3px #e8c7c7;
+    }
+
+    .container {
+  display: grid;
+  grid-template-columns: 2fr 1fr;
+  gap: 2rem;
+  max-width: 900px;
+  margin: 0 auto;
+  width: 100%;
+  align-items: flex-start; /* Garante que os filhos alinhem no topo */
+}
+
+    .center-login {
+      display: flex !important;
+      flex-direction: column;
+      justify-content: center;
+      align-items: center;
+      min-height: 70vh;
+    }
+
+    #login-section, #dashboard {
+      background: #fff0f0;
+      border-radius: 12px;
+      padding: 2rem;
+      box-shadow: 0 8px 20px rgba(163, 79, 79, 0.2);
+      width: 100%;
+      max-width: 400px;
+    }
+
+    form label {
+      font-weight: 600;
+      margin-bottom: 0.3rem;
+      display: block;
+      color: #7d4e4e;
+    }
+
+    input[type="email"],
+    input[type="password"],
+    textarea {
+      width: 100%;
+      padding: 0.75rem 1rem;
+      border: 1.5px solid #dbaaaa;
+      border-radius: 8px;
+      font-size: 1rem;
+      transition: border-color 0.3s ease;
+      resize: vertical;
+      font-family: inherit;
+    }
+
+    input[type="email"]:focus,
+    input[type="password"]:focus,
+    textarea:focus {
+      outline: none;
+      border-color: #b85252;
+      background: #ffe8e8;
+    }
+
+    button {
+      background-color: #b85252;
+      border: none;
+      padding: 0.85rem;
+      color: white;
+      font-weight: 700;
+      font-size: 1.1rem;
+      border-radius: 10px;
+      cursor: pointer;
+      width: 100%;
+      margin-top: 0.5rem;
+      transition: background-color 0.3s ease;
+      font-family: inherit;
+    }
+
+    button:hover {
+      background-color: #8a3d3d;
+    }
+
+    #dashboard button.resetar {
+      background-color: #d85c5c;
+      margin-top: 1rem;
+    }
+
+    #dashboard button.resetar:hover {
+      background-color: #a03d3d;
+    }
+
+    #dashboard button.small {
+      width: auto;
+      padding: 0.5rem 1.2rem;
+      font-size: 0.9rem;
+      margin-right: 0.5rem;
+      display: inline-block;
+    }
+
+    #login-error {
+      color: #d85c5c;
+      font-weight: 600;
+      margin-top: 0.3rem;
+      min-height: 1.4rem;
+      text-align: center;
+    }
+
+    #dashboard h2 {
+      font-weight: 700;
+      color: #7d4e4e;
+      margin-bottom: 1rem;
+      text-align: center;
+    }
+
+    #days-count {
+      font-size: rem;
+      font-weight: 900;
+      color: #b85252;
+      text-align: center;
+      margin-bottom: 1.5rem;
+      letter-spacing: 1px;
+    }
+
+    #form-discussao {
+      margin-top: 1rem;
+    }
+
+    #motivo {
+      min-height: 70px;
+      margin-bottom: 0.75rem;
+    }
+
+    #leaderboard {
+      background: #fff0f0;
+      border-radius: 12px;
+      padding: 2rem;
+      box-shadow: 0 8px 20px rgba(163, 79, 79, 0.2);
+      max-height: 500px;
+      overflow-y: auto;
+    }
+
+    #leaderboard h3 {
+      font-weight: 700;
+      color: #7d4e4e;
+      margin-bottom: 1rem;
+      text-align: center;
+    }
+
+    #scoreboard {
+      list-style: none;
+      padding: 0;
+      margin: 0;
+    }
+
+    #scoreboard li {
+      background: #f7d4d4;
+      border-radius: 8px;
+      padding: 0.8rem 1rem;
+      margin-bottom: 0.8rem;
+      font-size: 0.95rem;
+      color: #5a3e36;
+      box-shadow: inset 0 0 5px rgba(163,79,79,0.1);
+      position: relative;
+    }
+
+    #leaderboard .motivo-container.expandido {
+      max-height: none !important;
+      overflow: visible !important;
+      display: block !important;
+    }
+
+    .motivo-container {
+  max-height: 4.5em;
+  overflow: hidden;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  line-clamp: 2;
+  white-space: normal;
+  word-wrap: break-word; /* permite quebra dentro de palavras grandes */
+  overflow-wrap: break-word; /* suporte adicional */
+}
+
+.motivo-container.expandido {
+  -webkit-line-clamp: unset !important;
+  line-clamp: unset !important;
+  max-height: none !important;
+  overflow: visible !important;
+  display: block !important;
+  white-space: normal !important;
+  word-wrap: break-word !important;
+  overflow-wrap: break-word !important;
+}
+
+
+
+
+
+    #scoreboard li button.btn-excluir {
+      position: absolute;
+      top: 5px;
+      right: 5px;
+      background: transparent;
+      border: none;
+      color: #d85c5c;
+      font-size: 1.2rem;
+      cursor: pointer;
+      line-height: 1;
+      padding: 0;
+      width: 22px;
+      height: 22px;
+      text-align: center;
+      border-radius: 50%;
+      transition: color 0.3s ease;
+    }
+
+    #scoreboard li button.btn-excluir:hover {
+      color: #a03d3d;
+    }
+
+    @media (max-width: 768px) {
+      .container {
+        grid-template-columns: 1fr;
+      }
+      #leaderboard {
+        max-height: none;
+        margin-top: 2rem;
+      }
+    }
+  </style>
+</head>
+<body>
+  <h1>Contador de Dias Sem Discutir</h1>
+
+  <div class="container center-login">
+    <div id="login-section">
+      <form id="login-form">
+        <h2>Iniciar Sessão</h2>
+        <label for="email">Email:</label>
+        <input type="email" id="email" required />
+        <label for="password">Senha:</label>
+        <input type="password" id="password" required />
+        <button type="submit">Entrar</button>
+        <p id="login-error"></p>
+      </form>
+    </div>
+
+    <div id="dashboard" style="display:none;">
+      <h2>Olá, <span id="user-email"></span></h2>
+      <p><strong>Tempo sem discutir:</strong></p>
+      <p id="days-count">0</p>
+
+      <div style="text-align:center;">
+        <button class="small" onclick="abrirFormulario()">Discutimos</button>
+      </div>
+
+      <div id="form-discussao" style="display:none;">
+        <textarea id="motivo" placeholder="Motivo da discussão..."></textarea>
+        <div style="display: flex; gap: 1rem; margin-top: 0.5rem;">
+          <button onclick="registarDiscussao()">Registar Discussão</button>
+          <button type="button" onclick="cancelarDiscussao()" style="background-color: #bdc3c7;">Cancelar</button>
+        </div>
+      </div>
+      
+      <div style="text-align:center; margin-top: 1.5rem;">
+        <button onclick="logout()">Terminar Sessão</button>
+      </div>
+    </div>
+
+    <aside id="leaderboard" style="display:none;">
+      <h3>Histórico de Discussões</h3>
+      <ul id="scoreboard"></ul>
+      <button class="small resetar" onclick="resetarDiscussoes()">Resetar Discussões</button>
+    </aside>
+    
+  </div>
+
+  <script>
+    const firebaseConfig = {
+      apiKey: "AIzaSyBlsdV2ozifee8hqvHHaeVRF8Ot8v6yB5o",
+      authDomain: "discussao-f8c4e.firebaseapp.com",
+      projectId: "discussao-f8c4e",
+      storageBucket: "discussao-f8c4e.firebasestorage.app",
+      messagingSenderId: "21793643202",
+      appId: "1:21793643202:web:9553a13e3399c45d60395b",
+      measurementId: "G-CNBH1X6VLX"
+    };
+  
+    firebase.initializeApp(firebaseConfig);
+    const auth = firebase.auth();
+    const db = firebase.firestore();
+  
+    const nomesUsuarios = {
+      "rjcjanz@gmail.com": "Ricardo!",
+      "ines.trindade.medeiros@gmail.com": "Ines!",
+      "pikon0533@gmail.com": "Pikon"
+    };
+  
+    auth.onAuthStateChanged(async user => {
+      const container = document.querySelector('.container');
+  
+      if (user && Object.keys(nomesUsuarios).includes(user.email)) {
+        document.getElementById('login-section').style.display = 'none';
+        container.classList.remove('center-login');
+        document.getElementById('dashboard').style.display = 'block';
+        document.getElementById('leaderboard').style.display = 'block';
+        document.getElementById('user-email').innerText = nomesUsuarios[user.email] || user.email;
+        await carregarContador(user);
+        await carregarHistorico();
+      } else {
+        document.getElementById('login-section').style.display = 'block';
+        document.getElementById('dashboard').style.display = 'none';
+        document.getElementById('leaderboard').style.display = 'none';
+        container.classList.add('center-login');
+      }
+    });
+  
+    document.getElementById('login-form').addEventListener('submit', e => {
+      e.preventDefault();
+      const email = document.getElementById('email').value;
+      const password = document.getElementById('password').value;
+  
+      if (!Object.keys(nomesUsuarios).includes(email)) {
+        document.getElementById('login-error').innerText = 'Acesso negado.';
+        return;
+      }
+  
+      auth.signInWithEmailAndPassword(email, password)
+        .catch(err => {
+          document.getElementById('login-error').innerText = err.message;
+        });
+    });
+  
+    function logout() {
+      auth.signOut();
+    }
+  
+    function abrirFormulario() {
+      const form = document.getElementById('form-discussao');
+      form.style.display = form.style.display === 'block' ? 'none' : 'block';
+    }
+  
+    function gerarId() {
+      return Date.now().toString(36) + Math.random().toString(36).slice(2);
+    }
+  
+    function atualizarContador(ultimaDataISO) {
+      const target = new Date(ultimaDataISO);
+  
+      function atualizar() {
+        const agora = new Date();
+        const diffMs = agora - target;
+  
+        const dias = Math.floor(diffMs / (1000 * 60 * 60 * 24));
+        const horas = Math.floor((diffMs / (1000 * 60 * 60)) % 24);
+        const minutos = Math.floor((diffMs / (1000 * 60)) % 60);
+        const segundos = Math.floor((diffMs / 1000) % 60);
+  
+        const texto = `${dias} dias, ${horas} horas, ${minutos} minutos e ${segundos} segundos`;
+        document.getElementById('days-count').innerText = texto;
+      }
+  
+      atualizar();
+      setInterval(atualizar, 1000);
+    }
+  
+    async function carregarContador(user) {
+      const docRef = db.collection('estado').doc(`usuarios_${user.email}`);
+      const doc = await docRef.get();
+      let data;
+  
+      if (doc.exists) {
+        data = doc.data();
+      } else {
+        data = { ultimoReset: new Date().toISOString() };
+        await docRef.set(data);
+      }
+  
+      atualizarContador(data.ultimoReset);
+    }
+  
+    async function carregarHistorico() {
+      const doc = await db.collection('estado').doc('historico').get();
+      const data = doc.exists ? doc.data() : { historico: [] };
+  
+      const lista = document.getElementById('scoreboard');
+      lista.innerHTML = '';
+  
+      data.historico.slice().reverse().forEach(item => {
+        const li = document.createElement('li');
+        const motivoId = `motivo-${item.id}`;
+        li.innerHTML = `
+          <strong>${item.data}</strong> - <em>${item.utilizador}</em> discutiu após <strong>${item.dias}</strong> dias:<br>
+          <div id="${motivoId}" class="motivo-container">${item.motivo}</div>
+          <div style="margin-top: 0.3rem;">
+            <button class="small" onclick="toggleTexto('${motivoId}', this)">Ver mais</button>
+            <button class="btn-excluir" onclick="removerDiscussao('${item.id}')">×</button>
+          </div>
+        `;
+        lista.appendChild(li);
+      });
+    }
+  
+    async function registarDiscussao() {
+      const motivo = document.getElementById('motivo').value.trim();
+      if (!motivo) {
+        alert('Por favor, escreva o motivo da discussão.');
+        return;
+      }
+  
+      const user = auth.currentUser;
+      if (!user) return;
+  
+      const userDocRef = db.collection('estado').doc(`usuarios_${user.email}`);
+      const historicoRef = db.collection('estado').doc('historico');
+  
+      const userDoc = await userDocRef.get();
+      const historicoDoc = await historicoRef.get();
+  
+      const hoje = new Date();
+      const ultimoReset = userDoc.exists ? new Date(userDoc.data().ultimoReset) : hoje;
+      const dias = Math.floor((hoje - ultimoReset) / (1000 * 60 * 60 * 24));
+  
+      const novaDiscussao = {
+        id: gerarId(),
+        data: hoje.toLocaleString(),
+        dias,
+        motivo,
+        utilizador: nomesUsuarios[user.email] || user.email
+      };
+  
+      const historicoData = historicoDoc.exists ? historicoDoc.data() : { historico: [] };
+      historicoData.historico.push(novaDiscussao);
+  
+      await userDocRef.set({ ultimoReset: hoje.toISOString() });
+      await historicoRef.set(historicoData);
+  
+      document.getElementById('motivo').value = '';
+      document.getElementById('form-discussao').style.display = 'none';
+      await carregarContador(user);
+      await carregarHistorico();
+    }
+  
+    function cancelarDiscussao() {
+      document.getElementById('motivo').value = '';
+      document.getElementById('form-discussao').style.display = 'none';
+    }
+  
+    async function removerDiscussao(id) {
+      if (!confirm('Tem certeza que quer excluir esta discussão?')) return;
+  
+      const historicoRef = db.collection('estado').doc('historico');
+      const doc = await historicoRef.get();
+      if (!doc.exists) return;
+  
+      const data = doc.data();
+      data.historico = data.historico.filter(item => item.id !== id);
+  
+      await historicoRef.set(data);
+      await carregarHistorico();
+    }
+  
+    function toggleTexto(id, botao) {
+      const div = document.getElementById(id);
+      const isExpandido = div.classList.toggle('expandido');
+      botao.innerText = isExpandido ? 'Ver menos' : 'Ver mais';
+    }
+  
+    async function resetarDiscussoes() {
+      if (!confirm('Tem certeza que quer resetar todo o histórico de discussões?')) return;
+      const historicoRef = db.collection('estado').doc('historico');
+      await historicoRef.set({ historico: [] });
+      await carregarHistorico();
+    }
+  </script>
+  
+  
+</body>
+</html>
